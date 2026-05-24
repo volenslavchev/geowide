@@ -1,0 +1,11 @@
+[package]
+name = "indexer"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+ort = "2.0.0-rc.12"
+image = "0.24"
+ndarray = "=0.17.2"
+sqlx = { version = "0.9", features = [ "runtime-tokio", "sqlite" ] }
+anyhow = { workspace = true }
