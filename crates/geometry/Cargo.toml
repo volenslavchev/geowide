@@ -1,0 +1,15 @@
+[package]
+name = "geometry"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+h3o = { version = "0.10.0", features = ["geo"] }
+geo = { version = "0.33.1", features = ["serde"] }
+geojson = { version = "0.24", features = ["geo-types"] }
+geo-traits = "0.3.0"
+anyhow = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
