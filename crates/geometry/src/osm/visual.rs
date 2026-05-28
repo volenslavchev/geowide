@@ -9,7 +9,7 @@ pub fn visualize_paths(paths: &[Path], output_path: &str) -> std::io::Result<()>
     let mut features = Vec::new();
 
     for path in paths {
-        let line_geom = Geometry::try_from(&path.geometry).unwrap();
+        let line_geom = Geometry::from(&path.geometry);
         let line_feature = Feature {
             bbox: None,
             geometry: Some(line_geom),
@@ -38,7 +38,7 @@ pub fn visualize_paths(paths: &[Path], output_path: &str) -> std::io::Result<()>
             .collect();
 
         let multi_point = MultiPoint::new(points);
-        let segments_geom = Geometry::try_from(&multi_point).unwrap();
+        let segments_geom = Geometry::from(&multi_point);
 
         let points_feature = Feature {
             bbox: None,
@@ -69,7 +69,8 @@ pub fn visualize_paths(paths: &[Path], output_path: &str) -> std::io::Result<()>
 
     let geojson_string = feature_collection.to_string();
 
-    let html_content = format!(r#"
+    let html_content = format!(
+        r#"
 <!DOCTYPE html>
 <html>
 <head>
@@ -124,7 +125,9 @@ pub fn visualize_paths(paths: &[Path], output_path: &str) -> std::io::Result<()>
     </script>
 </body>
 </html>
-"#, geojson_string);
+"#,
+        geojson_string
+    );
 
     let mut file = File::create(output_path)?;
     file.write_all(html_content.as_bytes())?;

@@ -1,5 +1,6 @@
 mod osm;
 pub mod shard;
+pub mod sources;
 
 #[cfg(test)]
 mod tests {

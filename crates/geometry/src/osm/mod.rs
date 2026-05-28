@@ -2,8 +2,8 @@ pub mod types;
 pub mod visual;
 
 use geo::{
-    BooleanOps, Coord, Densify, Distance, Haversine, LineString, MapCoords, MultiLineString,
-    MultiPolygon, Orient, Point, orient::Direction,
+    BooleanOps, Coord, Densify, Distance, Haversine, LineString, MultiLineString, MultiPolygon,
+    Point,
 };
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -21,15 +21,8 @@ pub struct Path {
     pub segments: LineString,
 }
 
-pub async fn get_all_paths(bbox: MultiPolygon) -> Result<Vec<Path>, OverpassError> {
-    let aligned_bbox = bbox.map_coords(|coord| geo::Coord {
-        x: coord.y,
-        y: coord.x,
-    });
-
-    aligned_bbox.orient(Direction::Default);
-
-    let poly_string = aligned_bbox
+pub async fn get_all_paths(bbox: &MultiPolygon) -> Result<Vec<Path>, OverpassError> {
+    let poly_string = bbox
         .iter()
         .flat_map(|poly| poly.exterior().coords())
         .map(|coord| format!("{:.6} {:.6} ", coord.y, coord.x))
@@ -48,7 +41,7 @@ pub async fn get_all_paths(bbox: MultiPolygon) -> Result<Vec<Path>, OverpassErro
         .flat_map(|element| {
             let line: LineString = element.geometry.into();
             let multi_line = MultiLineString::new(vec![line]);
-            let clipped_multi_line = aligned_bbox.clip(&multi_line, false);
+            let clipped_multi_line = bbox.clip(&multi_line, false);
             clipped_multi_line.into_iter().map(move |clipped_line| {
                 let densified = Haversine.densify(&clipped_line, SEGMENT_COUNT);
 
@@ -58,7 +51,9 @@ pub async fn get_all_paths(bbox: MultiPolygon) -> Result<Vec<Path>, OverpassErro
                 for &coord in densified.0.iter() {
                     match last_saved_point {
                         Some(last) => {
-                            if Haversine.distance(Point(last), Point(coord)) >= MIN_DIST_BTW_SEGMENTS {
+                            if Haversine.distance(Point(last), Point(coord))
+                                >= MIN_DIST_BTW_SEGMENTS
+                            {
                                 clean_shards.push(coord);
                                 last_saved_point = Some(coord);
                             }

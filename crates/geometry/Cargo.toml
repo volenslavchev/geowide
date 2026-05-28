@@ -8,8 +8,13 @@ h3o = { version = "0.10.0", features = ["geo"] }
 geo = { version = "0.33.1", features = ["serde"] }
 geojson = { version = "0.24", features = ["geo-types"] }
 geo-traits = "0.3.0"
+async-trait = "0.1.89"
+geozero = "0.15.1"
+rstar = "0.13.0"
 anyhow = { workspace = true }
+thiserror = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
+image = { workspace = true }
