@@ -1,4 +1,4 @@
-use geo::{MapCoords, MultiPolygon};
+use geo::MultiPolygon;
 use geo_traits::CoordTrait;
 use h3o::{CellIndex, LatLng, Resolution, error::InvalidLatLng};
 
@@ -15,10 +15,7 @@ pub struct Shard {
 impl Shard {
     pub fn from_coords<V: CoordTrait<T = f64>>(value: V) -> Result<Self, InvalidLatLng> {
         let cell: CellIndex = LatLng::from_coord(&value)?.to_cell(SHARD_RESOLUTION);
-        let bounds = MultiPolygon::from(cell).map_coords(|coord| geo::Coord {
-            x: coord.y,
-            y: coord.x,
-        });
+        let bounds = MultiPolygon::from(cell);
         Ok(Self { cell, bounds })
     }
 

@@ -1,9 +1,7 @@
 pub mod types;
-pub mod visual;
 
 use geo::{
-    BooleanOps, Coord, Densify, Distance, Haversine, LineString, MultiLineString, MultiPolygon,
-    Point,
+    BooleanOps, Densify, Distance, Haversine, LineString, MultiLineString, MultiPolygon, Point,
 };
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -11,8 +9,8 @@ use serde_json::from_str;
 
 use types::{OsmElementWay, OverpassResponse};
 
-const SEGMENT_COUNT: f64 = 20.0;
-const MIN_DIST_BTW_SEGMENTS: f64 = 10.0;
+const SEGMENT_IDEAL_DISTANCE: f64 = 20.0;
+const MIN_DIST_BTW_SEGMENTS: f64 = 12.0;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Path {
@@ -34,7 +32,7 @@ pub async fn get_all_paths(bbox: &MultiPolygon) -> Result<Vec<Path>, OverpassErr
     ))
     .await?;
 
-    Ok(res
+    let mut paths = res
         .elements
         .into_iter()
         .filter(osm_element_filter)
@@ -43,35 +41,36 @@ pub async fn get_all_paths(bbox: &MultiPolygon) -> Result<Vec<Path>, OverpassErr
             let multi_line = MultiLineString::new(vec![line]);
             let clipped_multi_line = bbox.clip(&multi_line, false);
             clipped_multi_line.into_iter().map(move |clipped_line| {
-                let densified = Haversine.densify(&clipped_line, SEGMENT_COUNT);
-
-                let mut clean_shards: Vec<Coord> = Vec::new();
-                let mut last_saved_point: Option<Coord> = None;
-
-                for &coord in densified.0.iter() {
-                    match last_saved_point {
-                        Some(last) => {
-                            if Haversine.distance(Point(last), Point(coord))
-                                >= MIN_DIST_BTW_SEGMENTS
-                            {
-                                clean_shards.push(coord);
-                                last_saved_point = Some(coord);
-                            }
-                        }
-                        None => {
-                            clean_shards.push(coord);
-                            last_saved_point = Some(coord);
-                        }
-                    }
-                }
+                let densified = Haversine.densify(&clipped_line, SEGMENT_IDEAL_DISTANCE);
                 Path {
                     id: element.id,
                     geometry: clipped_line,
-                    segments: LineString(clean_shards),
+                    segments: LineString(densified.0),
                 }
             })
         })
-        .collect())
+        .collect::<Vec<_>>();
+
+    let mut global_saved_points: Vec<Point> = Vec::new();
+
+    for path in paths.iter_mut() {
+        let mut clean_segments: Vec<geo::Coord> = Vec::new();
+
+        for &coord in path.segments.0.iter() {
+            let candidate_point = Point::from(coord);
+            let is_too_close = global_saved_points.iter().any(|saved_pt| {
+                Haversine.distance(candidate_point, saved_pt.clone()) < MIN_DIST_BTW_SEGMENTS
+            });
+
+            if !is_too_close {
+                clean_segments.push(coord);
+                global_saved_points.push(candidate_point);
+            }
+        }
+        path.segments = LineString::new(clean_segments);
+    }
+
+    Ok(paths)
 }
 
 fn osm_element_filter(el: &OsmElementWay) -> bool {
