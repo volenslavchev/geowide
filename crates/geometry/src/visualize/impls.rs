@@ -1,3 +1,5 @@
+use geo::Coord;
+
 use crate::{
     osm::Path,
     shard::Shard,
@@ -32,5 +34,16 @@ impl<T: Visualize> Visualize for Vec<T> {
         for item in self {
             item.visualize(visualizer);
         }
+    }
+}
+
+pub struct Label {
+    pub text: String,
+    pub coord: Coord
+}
+
+impl Visualize for Label {
+    fn visualize(&self, visualizer: &mut MapVisualizer) {
+        visualizer.add_label(&self.coord, &self.text, Style::default().fill_color("white"));
     }
 }

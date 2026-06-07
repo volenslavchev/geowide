@@ -6,6 +6,8 @@ use serde::Serialize;
 use std::fs::File;
 use std::io::Write;
 
+pub use impls::*;
+
 pub trait Visualize {
     fn visualize(&self, visualizer: &mut MapVisualizer);
 }
@@ -58,15 +60,14 @@ impl Style {
     }
 }
 
+#[derive(Default)]
 pub struct MapVisualizer {
     features: Vec<Feature>,
 }
 
 impl MapVisualizer {
     pub fn new() -> Self {
-        Self {
-            features: Vec::new(),
-        }
+        Self::default()
     }
 
     pub fn draw<Obj: Visualize>(mut self, obj: &Obj) -> Self {
@@ -81,7 +82,7 @@ impl MapVisualizer {
     }
 
     pub fn add_point(&mut self, coord: &Coord, style: Style) -> &mut Self {
-        let point = GeoPoint::from(coord.clone());
+        let point = GeoPoint::from(*coord);
         let geom = Geometry::from(&point);
         self.push_feature(geom, style, "circle_point");
         self
@@ -108,12 +109,33 @@ impl MapVisualizer {
         self
     }
 
+    pub fn add_label(&mut self, coord: &Coord, text: &str, style: Style) -> &mut Self {
+        let point = GeoPoint::from(*coord);
+        let geom = Geometry::from(&point);
+        self.push_feature_with_text(geom, style, "label", Some(text));
+        self
+    }
+
     fn push_feature(&mut self, geometry: Geometry, style: Style, layer_type: &str) {
+        self.push_feature_with_text(geometry, style, layer_type, None);
+    }
+
+    fn push_feature_with_text(
+        &mut self,
+        geometry: Geometry,
+        style: Style,
+        layer_type: &str,
+        text: Option<&str>,
+    ) {
         if let Ok(serde_json::Value::Object(mut props)) = serde_json::to_value(style) {
             props.insert(
                 "type".to_string(),
                 serde_json::Value::String(layer_type.to_string()),
             );
+
+            if let Some(t) = text {
+                props.insert("text".to_string(), serde_json::Value::String(t.to_string()));
+            }
 
             let feature = Feature {
                 bbox: None,
@@ -160,37 +182,54 @@ impl MapVisualizer {
             attribution: 'OpenStreetMap'
         }}).addTo(map);
 
-        var geojsonData = {};
+        var geojsonData = {0};
 
         var geojsonLayer = L.geoJSON(geojsonData, {{
-    style: function (feature) {{
-        var props = feature.properties;
-        if (props.type === 'line' || props.type === 'polygon') {{
-            return {{
-                // Map SVG style "stroke" to Leaflet's "color"
-                color: props.stroke || '#3388ff',
-                weight: props.weight || 3,
-                opacity: props.opacity !== undefined ? props.opacity : 0.8,
-                fillColor: props.fill_color || '#3388ff',
-                fillOpacity: props.fill_opacity !== undefined ? props.fill_opacity : 0.2
-        }};
-        }}
-        }},
-    pointToLayer: function (feature, latlng) {{
-        var props = feature.properties;
-        if (props && props.type === 'circle_point') {{
-            return L.circleMarker(latlng, {{
-                radius: props.radius || 4,
-                // Circles use stroke for their border, fill_color for their center
-                color: props.stroke || '#000000',
-                weight: props.weight || 1,
-                opacity: props.opacity !== undefined ? props.opacity : 1.0,
-                fillColor: props.fill_color || '#ff0000',
-                fillOpacity: props.fill_opacity !== undefined ? props.fill_opacity : 0.9
-        }});
-        }}
-        return L.marker(latlng);
-        }}
+            style: function (feature) {{
+                var props = feature.properties;
+                if (props.type === 'line' || props.type === 'polygon') {{
+                    return {{
+                        color: props.stroke || '#3388ff',
+                        weight: props.weight || 3,
+                        opacity: props.opacity !== undefined ? props.opacity : 0.8,
+                        fillColor: props.fill_color || '#3388ff',
+                        fillOpacity: props.fill_opacity !== undefined ? props.fill_opacity : 0.2
+                    }};
+                }}
+            }},
+            pointToLayer: function (feature, latlng) {{
+                var props = feature.properties;
+                
+                // Draw normal points
+                if (props && props.type === 'circle_point') {{
+                    return L.circleMarker(latlng, {{
+                        radius: props.radius || 4,
+                        color: props.stroke || '#000000',
+                        weight: props.weight || 1,
+                        opacity: props.opacity !== undefined ? props.opacity : 1.0,
+                        fillColor: props.fill_color || '#ff0000',
+                        fillOpacity: props.fill_opacity !== undefined ? props.fill_opacity : 0.9
+                    }});
+                }}
+                
+                // Draw text labels
+                if (props && props.type === 'label') {{
+                    var color = props.fill_color || props.stroke || '#ffffff';
+                    var opacity = props.opacity !== undefined ? props.opacity : 1.0;
+                    var fontSize = props.radius || 12; // Re-using radius for font-size!
+                    var fontWeight = props.weight > 1 ? 'bold' : 'normal';
+
+                    return L.marker(latlng, {{
+                        icon: L.divIcon({{
+                            className: '', // Critical: prevents Leaflet's default white-box background
+                            html: `<div style="color: ${{color}}; opacity: ${{opacity}}; font-size: ${{fontSize}}px; font-weight: ${{fontWeight}}; white-space: nowrap; transform: translate(-50%, -50%); text-shadow: 1px 1px 2px #000;">${{props.text}}</div>`,
+                            iconSize: null
+                        }})
+                    }});
+                }}
+                
+                return L.marker(latlng);
+            }}
         }}).addTo(map);
 
         if (geojsonLayer.getBounds().isValid()) {{

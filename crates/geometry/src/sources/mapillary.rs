@@ -62,7 +62,7 @@ impl FeatureProcessor for MapillaryExtractor {
     fn feature_end(&mut self, _idx: u64) -> geozero::error::Result<()> {
         if let Some(id) = &self.current_id {
             self.images.push(MapillaryImage {
-                id: id.clone(),
+                id: *id,
                 coords: self.current_coords,
                 is_pano: self.is_pano,
                 compass_angle: self.compass_angle,
@@ -161,7 +161,11 @@ impl MapillaryDataSource {
         let mut last_image = None;
         let mut last_min_dist = 4.0;
         for candidate in self.images.locate_in_envelope_intersecting(search_envelope) {
-            let actual_distance = Haversine.distance(Point(coords), Point(candidate.coords)); //target_point.haversine_distance(&candidate_point);
+            if !candidate.is_pano {
+                continue;
+            }
+
+            let actual_distance = Haversine.distance(Point(coords), Point(candidate.coords));
 
             if actual_distance <= last_min_dist {
                 last_image = Some(candidate);
@@ -185,7 +189,7 @@ impl DataSource for MapillaryDataSource {
         let client = reqwest::Client::builder()
             .user_agent("Geowide/1.0")
             .build()
-            .map_err(|err| SourceError::Network(err))?;
+            .map_err(SourceError::Network)?;
 
         for x in min_x..=max_x {
             for y in min_y..=max_y {
@@ -198,11 +202,11 @@ impl DataSource for MapillaryDataSource {
                 let response = client
                     .execute(client.get(url).build().unwrap())
                     .await
-                    .map_err(|err| SourceError::Network(err))?;
+                    .map_err(SourceError::Network)?;
                 let bytes = response
                     .bytes()
                     .await
-                    .map_err(|err| SourceError::Network(err))?;
+                    .map_err(SourceError::Network)?;
                 let tile = Tile::decode(bytes).unwrap();
 
                 if let Some(image_layer) = tile.layers.into_iter().find(|l| l.name == "image") {
@@ -226,8 +230,17 @@ impl DataSource for MapillaryDataSource {
         Ok(())
     }
 
-    async fn get_at(&self, coords: Coord) -> Result<Option<super::ImageSet>, SourceError> {
-        todo!()
+    async fn get_at(
+        &self,
+        coords: Coord,
+        radius: f64,
+    ) -> Result<Option<super::ImageSet>, SourceError> {
+        if let Some(found) = self.get_images_within_radius(coords, radius) {
+            // TODO: Splitting logic...
+            todo!()
+        } else {
+            Ok(None)
+        }
     }
 
     fn priority(&self) -> usize {

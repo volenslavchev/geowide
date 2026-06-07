@@ -1,7 +1,8 @@
 pub mod types;
 
 use geo::{
-    BooleanOps, Densify, Distance, Haversine, LineString, MultiLineString, MultiPolygon, Point,
+    BooleanOps, Densify, Distance, Geometry, Haversine, LineString, MultiLineString, MultiPolygon,
+    Point,
 };
 use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
@@ -9,8 +10,10 @@ use serde_json::from_str;
 
 use types::{OsmElementWay, OverpassResponse};
 
-const SEGMENT_IDEAL_DISTANCE: f64 = 20.0;
-const MIN_DIST_BTW_SEGMENTS: f64 = 12.0;
+pub struct OsmConfig {
+    pub segment_ideal_distance: f64,
+    pub segment_min_distance: f64,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Path {
@@ -19,7 +22,10 @@ pub struct Path {
     pub segments: LineString,
 }
 
-pub async fn get_all_paths(bbox: &MultiPolygon) -> Result<Vec<Path>, OverpassError> {
+pub async fn get_all_paths(
+    bbox: &MultiPolygon,
+    config: &OsmConfig,
+) -> Result<Vec<Path>, OverpassError> {
     let poly_string = bbox
         .iter()
         .flat_map(|poly| poly.exterior().coords())
@@ -41,7 +47,7 @@ pub async fn get_all_paths(bbox: &MultiPolygon) -> Result<Vec<Path>, OverpassErr
             let multi_line = MultiLineString::new(vec![line]);
             let clipped_multi_line = bbox.clip(&multi_line, false);
             clipped_multi_line.into_iter().map(move |clipped_line| {
-                let densified = Haversine.densify(&clipped_line, SEGMENT_IDEAL_DISTANCE);
+                let densified = Haversine.densify(&clipped_line, config.segment_ideal_distance);
                 Path {
                     id: element.id,
                     geometry: clipped_line,
@@ -59,7 +65,7 @@ pub async fn get_all_paths(bbox: &MultiPolygon) -> Result<Vec<Path>, OverpassErr
         for &coord in path.segments.0.iter() {
             let candidate_point = Point::from(coord);
             let is_too_close = global_saved_points.iter().any(|saved_pt| {
-                Haversine.distance(candidate_point, saved_pt.clone()) < MIN_DIST_BTW_SEGMENTS
+                Haversine.distance(candidate_point, *saved_pt) < config.segment_min_distance
             });
 
             if !is_too_close {
@@ -71,6 +77,34 @@ pub async fn get_all_paths(bbox: &MultiPolygon) -> Result<Vec<Path>, OverpassErr
     }
 
     Ok(paths)
+}
+
+#[derive(Deserialize, Debug)]
+struct NominatimResult {
+    display_name: String,
+    geojson: geojson::Geometry,
+}
+
+pub async fn search_coordinates(query: &str) -> anyhow::Result<Geometry> {
+    let client = reqwest::Client::new();
+
+    let res: Vec<NominatimResult> = client
+        .get(format!(
+            "https://nominatim.openstreetmap.org/search?q={}&format=json&limit=1&polygon_geojson=1",
+            query
+        ))
+        .header("User-Agent", "Geowide/1.0")
+        .send()
+        .await?
+        .json()
+        .await?;
+
+    let city_data = res
+        .into_iter()
+        .next()
+        .ok_or(anyhow::anyhow!("City not found in OpenStreetMap!"))?;
+
+    Ok(city_data.geojson.try_into()?)
 }
 
 fn osm_element_filter(el: &OsmElementWay) -> bool {
