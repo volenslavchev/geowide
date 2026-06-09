@@ -1,5 +1,3 @@
-# --- BASE DOCKERFILE ---
-
 FROM lukemathwalker/cargo-chef:latest-rust-1 AS chef
 WORKDIR /app
 
@@ -13,5 +11,7 @@ RUN cargo chef cook --release --recipe-path recipe.json
 COPY . .
 RUN cargo build --release
 
-FROM debian:bookworm-slim AS runtime-base
+FROM debian:trixie-slim AS runtime
 WORKDIR /app
+
+COPY --from=builder /app/target/release/ /usr/local/bin/

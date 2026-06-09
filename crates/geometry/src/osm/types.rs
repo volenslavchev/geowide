@@ -29,7 +29,7 @@ pub struct OsmElementWay {
     //pub bounds: OsmBounds,
     pub geometry: OsmPolygon,
     //pub nodes: Vec<OsmElementId>,
-    pub tags: HashMap<String, String>
+    pub tags: HashMap<String, String>,
 }
 
 #[derive(Deserialize, Debug)]

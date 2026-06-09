@@ -1,0 +1,40 @@
+name: rust-search
+
+services:
+  base:
+    build:
+      context: .
+    networks:
+      - db
+
+  indexer:
+    build:
+      context: ./crates/indexer
+      additional_contexts:
+        rust-search-base: service:base
+    restart: always
+    container_name: indexer
+    ports:
+      - 80:80
+    networks:
+      - db
+    depends_on:
+      - base
+
+  qdrant:
+    image: qdrant/qdrant:latest
+    restart: always
+    container_name: qdrant
+    ports:
+      - 6333:6333
+      - 6334:6334
+    networks:
+      - db
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  qdrant_data:
+
+networks:
+  db:

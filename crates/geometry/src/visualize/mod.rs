@@ -70,8 +70,8 @@ impl MapVisualizer {
         Self::default()
     }
 
-    pub fn draw<Obj: Visualize>(mut self, obj: &Obj) -> Self {
-        obj.visualize(&mut self);
+    pub fn draw<Obj: Visualize>(&mut self, obj: &Obj) -> &mut Self {
+        obj.visualize(self);
         self
     }
 
