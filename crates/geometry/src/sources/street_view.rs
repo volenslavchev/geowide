@@ -20,14 +20,14 @@ struct Location {
 
 pub struct GoogleStreetViewSource {
     api_key: String,
-    client: Client
+    client: Client,
 }
 
 impl GoogleStreetViewSource {
     pub fn new(api_key: &str) -> Self {
         Self {
             api_key: api_key.to_owned(),
-            client: Client::new()
+            client: Client::new(),
         }
     }
 }
@@ -38,7 +38,11 @@ impl DataSource for GoogleStreetViewSource {
         Ok(())
     }
 
-    async fn get_at(&self, coords: Coord, search_radius: f64) -> Result<Option<ImageSet>, SourceError> {
+    async fn get_at(
+        &self,
+        coords: Coord,
+        search_radius: f64,
+    ) -> Result<Option<ImageSet>, SourceError> {
         let meta_url = format!(
             "https://maps.googleapis.com/maps/api/streetview/metadata?location={},{}&key={}",
             coords.y, coords.x, self.api_key
@@ -96,5 +100,9 @@ impl DataSource for GoogleStreetViewSource {
 
     fn priority(&self) -> usize {
         100
+    }
+
+    fn id(&self) -> &str {
+        "street_view_static"
     }
 }

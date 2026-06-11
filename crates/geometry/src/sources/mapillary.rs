@@ -235,7 +235,7 @@ impl DataSource for MapillaryDataSource {
         coords: Coord,
         radius: f64,
     ) -> Result<Option<super::ImageSet>, SourceError> {
-        if let Some(found) = self.get_images_within_radius(coords, radius) {
+        if let Some(_found) = self.get_images_within_radius(coords, radius) {
             // TODO: Splitting logic...
             todo!()
         } else {
@@ -245,6 +245,10 @@ impl DataSource for MapillaryDataSource {
 
     fn priority(&self) -> usize {
         1
+    }
+
+    fn id(&self) -> &str {
+        "mapillary"
     }
 }
 

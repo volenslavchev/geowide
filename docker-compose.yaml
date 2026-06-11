@@ -12,7 +12,6 @@ services:
       context: ./crates/indexer
       additional_contexts:
         rust-search-base: service:base
-    restart: always
     container_name: indexer
     ports:
       - 80:80

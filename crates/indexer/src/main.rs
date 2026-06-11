@@ -4,15 +4,20 @@ use crate::cli::Commands;
 
 pub mod cli;
 pub mod commands;
+pub mod db;
 pub mod model;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    if let Err(_) = dotenvy::dotenv() {
+        println!(".env file was not found.")
+    }
+
     let cli = cli::Cli::parse();
 
     match cli.command {
         Commands::Visualize(args) => commands::visualize::visualize_command(args).await,
-        Commands::Index(args) => commands::index::index_command(args),
+        Commands::Index(args) => commands::index::index_command(args).await,
         Commands::Serve(args) => commands::serve::serve_command(args),
     }
     // let mut model = MegaLoc::new("./model_export/megaloc.onnx")?;

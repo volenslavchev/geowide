@@ -21,4 +21,5 @@ pub trait DataSource: Send + Sync {
     async fn load_bounds(&mut self, bounds: &MultiPolygon) -> Result<(), SourceError>;
     async fn get_at(&self, coords: Coord, radius: f64) -> Result<Option<ImageSet>, SourceError>;
     fn priority(&self) -> usize;
+    fn id(&self) -> &str;
 }

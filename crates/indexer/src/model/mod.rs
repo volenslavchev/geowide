@@ -15,8 +15,7 @@ impl MegaLoc {
         let model = Session::builder()?
             .with_optimization_level(GraphOptimizationLevel::Level3)
             .map_err(|e| anyhow::anyhow!("{:?}", e))?
-            // TODO: Get CPU cores dynamically
-            .with_intra_threads(8)
+            .with_intra_threads(10)
             .map_err(|e| anyhow::anyhow!("{:?}", e))?
             .commit_from_file(model_source)?;
 

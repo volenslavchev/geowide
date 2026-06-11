@@ -5,6 +5,7 @@ use geojson::{Feature, FeatureCollection, Geometry};
 use serde::Serialize;
 use std::fs::File;
 use std::io::Write;
+use std::path::Path;
 
 pub use impls::*;
 
@@ -148,7 +149,7 @@ impl MapVisualizer {
         }
     }
 
-    pub fn write_html(&self, output_path: &str) -> std::io::Result<()> {
+    pub fn write_html<P: AsRef<Path>>(&self, output_path: P) -> std::io::Result<()> {
         let feature_collection = FeatureCollection {
             bbox: None,
             features: self.features.clone(),
@@ -175,7 +176,7 @@ impl MapVisualizer {
 <body>
     <div id="map"></div>
     <script>
-        var map = L.map('map');
+        var map = L.map('map', {{ preferCanvas: true }});
         
         L.tileLayer('https://{{s}}.basemaps.cartocdn.com/dark_all/{{z}}/{{x}}/{{y}}{{r}}.png', {{
             maxZoom: 19,

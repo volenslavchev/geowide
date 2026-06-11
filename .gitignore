@@ -18,3 +18,5 @@ target
 /target
 /test_images
 **/.venv
+
+.env

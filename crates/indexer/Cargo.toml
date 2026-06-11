@@ -7,9 +7,14 @@ edition = "2024"
 ort = "2.0.0-rc.12"
 ndarray = "=0.17.2"
 qdrant-client = "1.18.0"
+rapidhash = "4.4.1"
+dotenvy = "0.15.7"
 anyhow = { workspace = true }
 image = { workspace = true }
 clap = { workspace = true }
 axum = { workspace = true }
 tokio = { workspace = true }
+geo = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
 geometry = { path = "../geometry" }

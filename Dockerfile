@@ -14,4 +14,4 @@ RUN cargo build --release
 FROM debian:trixie-slim AS runtime
 WORKDIR /app
 
-COPY --from=builder /app/target/release/ /usr/local/bin/
+COPY --from=builder /app/target/release/indexer /usr/local/bin/indexer
