@@ -37,8 +37,8 @@ pub struct IndexArgs {
     /// The shard to index. Can be found via the "visualize" command.
     #[arg(long)]
     pub shard: String,
-    /// Only index a specific amount of images. Every shard point contains 4
-    /// images. 
+    /// Only index a specific amount of points. Keep in mind every point
+    /// contains 4 images.
     #[arg(long)]
     pub amount: Option<usize>,
     /// Amount of images to index per batch.
@@ -62,6 +62,15 @@ pub struct ServeArgs {
     port: usize,
 }
 
+#[derive(Args)]
+pub struct LocateArgs {
+    pub path: PathBuf,
+    /// If provided, a html file will be saved with the top 10 locations
+    /// mapped out
+    #[arg(long)]
+    pub out: Option<PathBuf>
+}
+
 #[derive(Subcommand)]
 pub enum Commands {
     /// Visualize indexer data. By default it shows the indexer's data, however
@@ -69,6 +78,7 @@ pub enum Commands {
     Visualize(VisualizeArgs),
     Index(IndexArgs),
     Serve(ServeArgs),
+    Locate(LocateArgs)
 }
 
 #[derive(Debug, Clone)]

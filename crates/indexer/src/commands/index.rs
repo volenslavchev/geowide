@@ -14,7 +14,8 @@ use tokio::sync::mpsc;
 use crate::{
     cli::IndexArgs,
     db::{ImagePoint, IndexDatabase},
-    model::{MegaLoc, Model},
+    model::Model,
+    utils::get_model_default_paths,
 };
 
 pub async fn index_command(args: IndexArgs) -> anyhow::Result<()> {
@@ -46,9 +47,7 @@ pub async fn index_command(args: IndexArgs) -> anyhow::Result<()> {
     let client = IndexDatabase::new().await?;
 
     println!("{}", "Loading MegaLoc model...".blue());
-    let model = MegaLoc::new(
-        &std::env::var("MODEL_PATH").unwrap_or("./model_export/megaloc.onnx".to_string()),
-    )?;
+    let model = get_model_default_paths()?;
 
     println!("{}", "Getting all saved points".blue());
     let all_saved_images = client.get_all_points().await?;
@@ -68,8 +67,7 @@ pub async fn index_command(args: IndexArgs) -> anyhow::Result<()> {
     let coords_that_need_fetching_len = coords_that_need_fetching.len();
 
     println!(
-        "Total saved points (est): {} / Total shard points: {} / Points to fetch: {} / Images to fetch: {}",
-        (all_saved_images.size() / 4).to_string().blue(),
+        "Total shard points: {} / Points to fetch: {} / Images to fetch: {}",
         all_coords_len.to_string().blue(),
         coords_that_need_fetching_len.to_string().blue(),
         (coords_that_need_fetching_len * 4).to_string().blue()
@@ -108,7 +106,7 @@ pub async fn index_command(args: IndexArgs) -> anyhow::Result<()> {
     });
 
     let mut current_batch = Vec::new();
-    let mut total_images_processed = 0;
+    let mut total_points_processed = 0;
 
     let model = Arc::new(model);
     while let Some((source, coord, way, image_set)) = image_rx.recv().await {
@@ -123,7 +121,7 @@ pub async fn index_command(args: IndexArgs) -> anyhow::Result<()> {
             }));
         }
 
-        total_images_processed += inference_tasks.len();
+        total_points_processed += 1;
 
         for task in inference_tasks {
             match task.await.unwrap() {
@@ -149,16 +147,13 @@ pub async fn index_command(args: IndexArgs) -> anyhow::Result<()> {
                 .await?;
 
             println!(
-                "Processed batch. Total processed images: {} / images left total: {}",
-                total_images_processed.to_string().blue(),
-                ((coords_that_need_fetching_len as i32) - (total_images_processed as i32))
-                    .max(0)
-                    .to_string()
-                    .blue()
+                "Processed batch. Total processed points: {} / points left total: {}",
+                total_points_processed.to_string().blue(),
+                (coords_that_need_fetching_len - total_points_processed).to_string().blue()
             );
 
             if let Some(limit) = args.amount {
-                if total_images_processed >= limit {
+                if total_points_processed >= limit {
                     println!(
                         "Requested amount limit ({}) reached. Shutting down gracefully...",
                         limit
@@ -176,9 +171,9 @@ pub async fn index_command(args: IndexArgs) -> anyhow::Result<()> {
     }
 
     println!(
-        "{} Processed {} valid images.",
+        "{} Processed {} valid points.",
         "Indexing complete!".green(),
-        total_images_processed.to_string().blue()
+        total_points_processed.to_string().blue()
     );
 
     Ok(())

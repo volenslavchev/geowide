@@ -6,6 +6,7 @@ pub mod cli;
 pub mod commands;
 pub mod db;
 pub mod model;
+pub mod utils;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -19,6 +20,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Visualize(args) => commands::visualize::visualize_command(args).await,
         Commands::Index(args) => commands::index::index_command(args).await,
         Commands::Serve(args) => commands::serve::serve_command(args),
+        Commands::Locate(args) => commands::locate::locate_command(args).await,
     }
     // let mut model = MegaLoc::new("./model_export/megaloc.onnx")?;
 

@@ -5,8 +5,8 @@ use geometry::utils::SpatialTree;
 use qdrant_client::{
     Payload, Qdrant, QdrantError,
     qdrant::{
-        CreateCollectionBuilder, Distance, PointId, PointStruct, ScrollPointsBuilder,
-        UpsertPointsBuilder, VectorParamsBuilder,
+        CreateCollectionBuilder, Distance, PointId, PointStruct, QueryPointsBuilder,
+        ScrollPointsBuilder, SearchParamsBuilder, UpsertPointsBuilder, VectorParamsBuilder,
     },
 };
 use serde::{Deserialize, Serialize};
@@ -22,6 +22,12 @@ pub struct ImagePoint {
     pub ilat: f64,
     pub source: String,
     pub seq_id: u32,
+}
+
+#[derive(Clone, Debug)]
+pub struct FoundImagePoint {
+    pub data: ImagePoint,
+    pub score: f32,
 }
 
 pub struct IndexDatabase {
@@ -40,6 +46,34 @@ impl IndexDatabase {
                 .await?;
         }
         Ok(Self { client })
+    }
+
+    pub async fn search(
+        &self,
+        embeddings: Vec<f32>,
+        limit: u64,
+    ) -> Result<Vec<FoundImagePoint>, QdrantError> {
+        let found_images = self
+            .client
+            .query(
+                QueryPointsBuilder::new(COLLECTION_NAME)
+                    .query(embeddings)
+                    .limit(limit)
+                    .with_payload(true)
+                    .params(SearchParamsBuilder::default().hnsw_ef(256).exact(false)),
+            )
+            .await?;
+
+        Ok(found_images
+            .result
+            .iter()
+            .filter_map(|v| {
+                Some(FoundImagePoint {
+                    data: Self::parse_saved_image(&v.payload)?,
+                    score: v.score,
+                })
+            })
+            .collect())
     }
 
     pub async fn bulk_insert_points(
@@ -105,16 +139,14 @@ impl IndexDatabase {
             let response = self.client.scroll(request_builder).await?;
 
             for record in response.result {
-                if let Ok(value) = serde_json::to_value(record.payload) {
-                    if let Ok(data) = serde_json::from_value::<ImagePoint>(value) {
-                        points.push((
-                            Coord {
-                                x: data.ilon,
-                                y: data.ilat,
-                            },
-                            data,
-                        ));
-                    }
+                if let Some(data) = Self::parse_saved_image(&record.payload) {
+                    points.push((
+                        Coord {
+                            x: data.ilon,
+                            y: data.ilat,
+                        },
+                        data,
+                    ));
                 }
             }
 
@@ -126,6 +158,18 @@ impl IndexDatabase {
         }
 
         Ok(SpatialTree::from_bulk(points))
+    }
+
+    fn parse_saved_image<T: Serialize>(payload: &T) -> Option<ImagePoint> {
+        if let Ok(value) = serde_json::to_value(payload) {
+            if let Ok(data) = serde_json::from_value::<ImagePoint>(value) {
+                Some(data)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
     }
 }
 

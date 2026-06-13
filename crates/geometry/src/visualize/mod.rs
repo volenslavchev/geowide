@@ -1,4 +1,4 @@
-mod impls;
+pub mod impls;
 
 use geo::{Coord, LineString, Point as GeoPoint, Polygon as GeoPolygon};
 use geojson::{Feature, FeatureCollection, Geometry};
@@ -27,6 +27,8 @@ pub struct Style {
     pub fill_color: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fill_opacity: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tooltip: Option<String>,
 }
 
 impl Style {
@@ -57,6 +59,11 @@ impl Style {
 
     pub fn fill_opacity(mut self, opacity: f64) -> Self {
         self.fill_opacity = Some(opacity);
+        self
+    }
+
+    pub fn tooltip(mut self, text: &str) -> Self {
+        self.tooltip = Some(text.to_string());
         self
     }
 }
@@ -230,6 +237,11 @@ impl MapVisualizer {
                 }}
                 
                 return L.marker(latlng);
+            }},
+            onEachFeature: function (feature, layer) {{
+                if (feature.properties && feature.properties.tooltip) {{
+                    layer.bindTooltip(feature.properties.tooltip);
+                }}
             }}
         }}).addTo(map);
 
