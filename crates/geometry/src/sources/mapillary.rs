@@ -1,13 +1,12 @@
 use async_trait::async_trait;
-use geo::{BoundingRect, Coord, Distance, Haversine, MultiPolygon, Point};
+use geo::{BoundingRect, Coord, MultiPolygon};
 use geozero::{
     ColumnValue, FeatureProcessor, GeomProcessor, PropertyProcessor,
     mvt::{Message, Tile},
 };
-use rstar::{AABB, RTree, RTreeObject};
 use std::f64::consts::PI;
 
-use crate::sources::SourceError;
+use crate::{sources::SourceError, utils::SpatialTree};
 
 use super::DataSource;
 
@@ -18,14 +17,6 @@ pub struct MapillaryImage {
     pub is_pano: bool,
     pub compass_angle: Option<f64>,
     pub quality: Option<f32>,
-}
-
-impl RTreeObject for MapillaryImage {
-    type Envelope = AABB<[f64; 2]>;
-
-    fn envelope(&self) -> Self::Envelope {
-        AABB::from_point(self.coords.x_y().into())
-    }
 }
 
 struct MapillaryExtractor {
@@ -131,14 +122,14 @@ impl GeomProcessor for MapillaryExtractor {
 
 pub struct MapillaryDataSource {
     api_key: String,
-    images: RTree<MapillaryImage>,
+    images: SpatialTree<MapillaryImage>,
 }
 
 impl MapillaryDataSource {
     pub fn new(api_key: &str) -> Self {
         Self {
             api_key: api_key.replace("|", "%7C"),
-            images: RTree::new(),
+            images: SpatialTree::new(),
         }
     }
 
@@ -147,33 +138,8 @@ impl MapillaryDataSource {
     }
 
     pub fn get_images_within_radius(&self, coords: Coord, radius: f64) -> Option<&MapillaryImage> {
-        let lat_buffer = radius / 111_111.0;
-        let lon_buffer = lat_buffer / coords.y.to_radians().cos().abs();
-
-        let padded_lat_buffer = lat_buffer * 1.05;
-        let padded_lon_buffer = lon_buffer * 1.05;
-
-        let search_envelope = AABB::from_corners(
-            [coords.x - padded_lon_buffer, coords.y - padded_lat_buffer],
-            [coords.x + padded_lon_buffer, coords.y + padded_lat_buffer],
-        );
-
-        let mut last_image = None;
-        let mut last_min_dist = 4.0;
-        for candidate in self.images.locate_in_envelope_intersecting(search_envelope) {
-            if !candidate.is_pano {
-                continue;
-            }
-
-            let actual_distance = Haversine.distance(Point(coords), Point(candidate.coords));
-
-            if actual_distance <= last_min_dist {
-                last_image = Some(candidate);
-            }
-            last_min_dist = actual_distance;
-        }
-
-        last_image
+        self.images
+            .get_at_filter(coords, radius, |item| !item.is_pano)
     }
 }
 
@@ -184,7 +150,7 @@ impl DataSource for MapillaryDataSource {
         let (min_x, min_y) = lon_lat_to_tile(bbox.min().x, bbox.max().y);
         let (max_x, max_y) = lon_lat_to_tile(bbox.max().x, bbox.min().y);
 
-        let mut images: Vec<MapillaryImage> = vec![];
+        let mut images: Vec<(Coord, MapillaryImage)> = vec![];
 
         let client = reqwest::Client::builder()
             .user_agent("Geowide/1.0")
@@ -193,7 +159,6 @@ impl DataSource for MapillaryDataSource {
 
         for x in min_x..=max_x {
             for y in min_y..=max_y {
-                println!("X: {}, Y: {}", x, y);
                 let url = format!(
                     "https://tiles.mapillary.com/maps/vtp/mly1_public/2/{}/{}/{}?access_token={}",
                     ZOOM_LEVEL, x, y, self.api_key
@@ -203,10 +168,7 @@ impl DataSource for MapillaryDataSource {
                     .execute(client.get(url).build().unwrap())
                     .await
                     .map_err(SourceError::Network)?;
-                let bytes = response
-                    .bytes()
-                    .await
-                    .map_err(SourceError::Network)?;
+                let bytes = response.bytes().await.map_err(SourceError::Network)?;
                 let tile = Tile::decode(bytes).unwrap();
 
                 if let Some(image_layer) = tile.layers.into_iter().find(|l| l.name == "image") {
@@ -215,17 +177,14 @@ impl DataSource for MapillaryDataSource {
                     geozero::mvt::process(&image_layer, &mut extractor)
                         .expect("Failed to process MVT Layer");
 
-                    images.extend(extractor.images);
+                    for image in extractor.images {
+                        images.push((image.coords, image));
+                    }
                 }
             }
         }
 
-        self.images = RTree::bulk_load(images);
-
-        println!(
-            "Extracted mapillary metadata. Total images loaded: {:?}",
-            self.images.size()
-        );
+        self.images = SpatialTree::from_bulk(images);
 
         Ok(())
     }

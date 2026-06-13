@@ -24,6 +24,9 @@ pub struct VisualizeArgs {
     /// Visualize the shard this point is in (geojson).
     #[arg(long, conflicts_with = "shard")]
     pub point: Option<CliPoint>,
+    // Visualize the already indexed points - they will be in green.
+    #[arg(long, default_value = "false")]
+    pub indexed: bool,
     /// Where to save the visualisation (as an .html file)
     #[arg(long)]
     pub out: PathBuf,
@@ -34,6 +37,13 @@ pub struct IndexArgs {
     /// The shard to index. Can be found via the "visualize" command.
     #[arg(long)]
     pub shard: String,
+    /// Only index a specific amount of images. Every shard point contains 4
+    /// images. 
+    #[arg(long)]
+    pub amount: Option<usize>,
+    /// Amount of images to index per batch.
+    #[arg(long, default_value = "80")]
+    pub batch_size: usize,
     /// Google maps API key. If provided, the google maps API
     /// will be used. Can also be in environment (GOOGLE_API_KEY)
     #[arg(long)]

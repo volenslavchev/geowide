@@ -1,13 +1,18 @@
+use std::sync::Mutex;
+
 use image::{ImageBuffer, Rgb, imageops::FilterType};
 use ndarray::Array4;
-use ort::session::{Session, builder::GraphOptimizationLevel};
+use ort::{
+    ep::CoreML,
+    session::{Session, builder::GraphOptimizationLevel},
+};
 
 pub trait Model: Send + 'static {
-    fn transform(&mut self, image: &ImageBuffer<Rgb<u8>, Vec<u8>>) -> anyhow::Result<Vec<f32>>;
+    fn transform(&self, image: &ImageBuffer<Rgb<u8>, Vec<u8>>) -> anyhow::Result<Vec<f32>>;
 }
 
 pub struct MegaLoc {
-    model: Session,
+    model: Mutex<Session>,
 }
 
 impl MegaLoc {
@@ -17,14 +22,18 @@ impl MegaLoc {
             .map_err(|e| anyhow::anyhow!("{:?}", e))?
             .with_intra_threads(10)
             .map_err(|e| anyhow::anyhow!("{:?}", e))?
+            .with_execution_providers([CoreML::default().build()])
+            .map_err(|e| anyhow::anyhow!("{:?}", e))?
             .commit_from_file(model_source)?;
 
-        Ok(Self { model })
+        Ok(Self {
+            model: Mutex::new(model),
+        })
     }
 }
 
 impl Model for MegaLoc {
-    fn transform(&mut self, image: &ImageBuffer<Rgb<u8>, Vec<u8>>) -> anyhow::Result<Vec<f32>> {
+    fn transform(&self, image: &ImageBuffer<Rgb<u8>, Vec<u8>>) -> anyhow::Result<Vec<f32>> {
         let resized = image::imageops::resize(image, 322, 322, FilterType::Triangle);
         let mean = [0.485, 0.456, 0.406];
         let std = [0.229, 0.224, 0.225];
@@ -39,7 +48,8 @@ impl Model for MegaLoc {
         }
 
         let tensor = ort::value::Value::from_array(input_tensor)?;
-        let outputs = self.model.run(ort::inputs!["input_image" => tensor])?;
+        let mut locked_model = self.model.lock().unwrap();
+        let outputs = locked_model.run(ort::inputs!["input_image" => tensor])?;
 
         let descriptor_tensor = outputs["descriptor"].try_extract_tensor::<f32>()?;
         Ok(descriptor_tensor.1.to_vec())

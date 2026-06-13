@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use async_trait::async_trait;
 use geo::{Coord, Distance, Haversine, MultiPolygon, Point};
 use reqwest::Client;
@@ -25,9 +27,16 @@ pub struct GoogleStreetViewSource {
 
 impl GoogleStreetViewSource {
     pub fn new(api_key: &str) -> Self {
+        let client = Client::builder()
+            .tcp_keepalive(Duration::from_secs(60))
+            .pool_idle_timeout(Duration::from_secs(60))
+            .pool_max_idle_per_host(50)
+            .timeout(Duration::from_secs(15))
+            .build()
+            .unwrap_or_else(|_| Client::new());
         Self {
             api_key: api_key.to_owned(),
-            client: Client::new(),
+            client,
         }
     }
 }
@@ -64,11 +73,7 @@ impl DataSource for GoogleStreetViewSource {
             return Ok(None);
         }
 
-        let mut pieces = Vec::with_capacity(4);
-        let headings = [0, 90, 180, 270];
-        let mut fetch_tasks = Vec::new();
-
-        for heading in headings {
+        let fetch_tasks = [0, 90, 180, 270].iter().map(|heading| {
             let img_url = format!(
                 "https://maps.googleapis.com/maps/api/streetview?size=640x640&pano={}&heading={}&pitch=0&fov=90&key={}",
                 pano_id, heading, self.api_key
@@ -76,18 +81,24 @@ impl DataSource for GoogleStreetViewSource {
 
             let client_clone = self.client.clone();
 
-            fetch_tasks.push(tokio::spawn(async move {
+            async move {
                 let response = client_clone.get(&img_url).send().await?;
                 response.bytes().await
-            }));
-        }
+            }
+        });
 
-        for task in fetch_tasks {
-            let image_bytes = task.await.unwrap()?;
+        let all_image_bytes = futures::future::try_join_all(fetch_tasks).await?;
 
-            let decoded_img = image::load_from_memory(&image_bytes)?.into_rgb8();
-            pieces.push(decoded_img);
-        }
+        let pieces = tokio::task::spawn_blocking(move || {
+            let mut decoded = Vec::with_capacity(4);
+            for bytes in all_image_bytes {
+                let img = image::load_from_memory(&bytes)?.into_rgb8();
+                decoded.push(img);
+            }
+            Ok::<_, image::ImageError>(decoded)
+        })
+        .await
+        .unwrap()?;
 
         Ok(Some(ImageSet {
             pieces,

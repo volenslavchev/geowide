@@ -1,6 +1,9 @@
 use image::RgbImage;
 use std::f64::consts::PI;
 
+pub mod spatial_tree;
+pub use spatial_tree::*;
+
 /// Extracts a flat rectilinear image from an equirectangular panorama
 /// `yaw_deg`: 0 = Front, 90 = Right, 180 = Back, 270 = Left
 pub fn extract_flat_view(

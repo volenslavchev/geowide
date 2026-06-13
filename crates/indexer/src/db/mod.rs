@@ -1,3 +1,7 @@
+use std::time::Duration;
+
+use geo::Coord;
+use geometry::utils::SpatialTree;
 use qdrant_client::{
     Payload, Qdrant, QdrantError,
     qdrant::{
@@ -5,7 +9,6 @@ use qdrant_client::{
         UpsertPointsBuilder, VectorParamsBuilder,
     },
 };
-use rapidhash::v3::rapidhash_v3;
 use serde::{Deserialize, Serialize};
 
 const COLLECTION_NAME: &'static str = "images";
@@ -18,12 +21,7 @@ pub struct ImagePoint {
     pub ilon: f64,
     pub ilat: f64,
     pub source: String,
-}
-
-#[derive(Clone, Debug)]
-pub struct InsertedImagePoint {
-    pub value: ImagePoint,
-    pub id: u64,
+    pub seq_id: u32,
 }
 
 pub struct IndexDatabase {
@@ -51,19 +49,47 @@ impl IndexDatabase {
         let mut qdrant_points = Vec::with_capacity(data.len());
 
         for (image_data, embedding) in data {
-            let point_id = hash_image(image_data.way_id, image_data.ilon, image_data.ilat);
+            let point_id = hash_image(
+                image_data.way_id,
+                image_data.ilon,
+                image_data.ilat,
+                image_data.seq_id,
+            );
             let payload: Payload = serde_json::to_value(&image_data)?.try_into()?;
             qdrant_points.push(PointStruct::new(point_id, embedding, payload));
         }
 
-        self.client
-            .upsert_points(UpsertPointsBuilder::new(COLLECTION_NAME, qdrant_points))
-            .await?;
-        Ok(())
+        let max_attempts = 2;
+        let mut attempts = 0;
+
+        loop {
+            attempts += 1;
+
+            match self
+                .client
+                .upsert_points(UpsertPointsBuilder::new(
+                    COLLECTION_NAME,
+                    qdrant_points.clone(),
+                ))
+                .await
+            {
+                Ok(_) => return Ok(()),
+                Err(err) => {
+                    if attempts >= max_attempts {
+                        return Err(anyhow::anyhow!(
+                            "Fatal: Failed to insert batch after {} failed attempts.",
+                            max_attempts
+                        ));
+                    }
+                    println!("Error inserting batch: {}. Retrying in 2 seconds...", err);
+                    tokio::time::sleep(Duration::from_secs(2)).await;
+                }
+            }
+        }
     }
 
-    pub async fn get_all_points(&self) -> Result<Vec<InsertedImagePoint>, QdrantError> {
-        let mut all_data = Vec::new();
+    pub async fn get_all_points(&self) -> Result<SpatialTree<ImagePoint>, QdrantError> {
+        let mut points: Vec<(Coord, ImagePoint)> = vec![];
         let mut offset: Option<PointId> = None;
 
         loop {
@@ -79,21 +105,15 @@ impl IndexDatabase {
             let response = self.client.scroll(request_builder).await?;
 
             for record in response.result {
-                let point_id = match record
-                    .id
-                    .as_ref()
-                    .and_then(|id| id.point_id_options.as_ref())
-                {
-                    Some(qdrant_client::qdrant::point_id::PointIdOptions::Num(id)) => *id,
-                    _ => continue,
-                };
-
                 if let Ok(value) = serde_json::to_value(record.payload) {
                     if let Ok(data) = serde_json::from_value::<ImagePoint>(value) {
-                        all_data.push(InsertedImagePoint {
-                            value: data,
-                            id: point_id,
-                        })
+                        points.push((
+                            Coord {
+                                x: data.ilon,
+                                y: data.ilat,
+                            },
+                            data,
+                        ));
                     }
                 }
             }
@@ -105,16 +125,20 @@ impl IndexDatabase {
             }
         }
 
-        Ok(all_data)
+        Ok(SpatialTree::from_bulk(points))
     }
 }
 
-pub fn hash_image(way_id: u64, lon: f64, lat: f64) -> u64 {
-    let mut buffer = [0u8; 24];
+pub fn hash_image(way_id: u64, lon: f64, lat: f64, image_index: u32) -> u64 {
+    let mut buffer = [0u8; 32];
+
+    let lon_fixed = (lon * 10_000_000.0).round() as i64;
+    let lat_fixed = (lat * 10_000_000.0).round() as i64;
 
     buffer[0..8].copy_from_slice(&way_id.to_le_bytes());
-    buffer[8..16].copy_from_slice(&lon.to_bits().to_le_bytes());
-    buffer[16..24].copy_from_slice(&lat.to_bits().to_le_bytes());
+    buffer[8..16].copy_from_slice(&lon_fixed.to_le_bytes());
+    buffer[16..24].copy_from_slice(&lat_fixed.to_le_bytes());
+    buffer[24..28].copy_from_slice(&image_index.to_le_bytes());
 
-    rapidhash_v3(&buffer)
+    rapidhash::v3::rapidhash_v3(&buffer)
 }
