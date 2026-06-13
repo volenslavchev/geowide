@@ -59,7 +59,7 @@ pub struct IndexArgs {
 #[derive(Args)]
 pub struct ServeArgs {
     #[arg(long, default_value = "80")]
-    port: usize,
+    pub port: usize,
 }
 
 #[derive(Args)]
@@ -73,8 +73,6 @@ pub struct LocateArgs {
 
 #[derive(Subcommand)]
 pub enum Commands {
-    /// Visualize indexer data. By default it shows the indexer's data, however
-    /// if any arguments are provided, the data from them will be shown instead
     Visualize(VisualizeArgs),
     Index(IndexArgs),
     Serve(ServeArgs),

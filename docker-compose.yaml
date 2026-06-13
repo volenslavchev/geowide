@@ -13,6 +13,7 @@ services:
       additional_contexts:
         rust-search-base: service:base
     container_name: indexer
+    env_file: ".env"
     ports:
       - 80:80
     networks:

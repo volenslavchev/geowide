@@ -4,7 +4,7 @@ members = ["crates/geometry","crates/indexer"]
 
 [workspace.dependencies]
 axum = "0.8.9"
-tower-http = "0.6.10"
+tower-http = { version = "0.6.10", features = ["cors"] }
 reqwest = { version = "0.13.3", features = ["json", "form", "gzip", "brotli", "deflate"] }
 tokio = { version = "1.52.3", features = ["macros"] }
 futures = "0.3"

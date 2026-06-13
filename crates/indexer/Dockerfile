@@ -8,4 +8,4 @@ COPY ./model_export/megaloc.onnx ./megaloc.onnx
 COPY ./model_export/megaloc.onnx.data ./megaloc.onnx.data
 
 RUN chmod +x ./indexer
-ENTRYPOINT ["./indexer", "index", "--shard", "test"]
+ENTRYPOINT ["./indexer", "serve"]

@@ -42,7 +42,11 @@ pub async fn locate_command(args: LocateArgs) -> anyhow::Result<()> {
                     y: result.data.lat,
                 },
                 Style::default()
-                    .fill_color(if result.score > 0.3 { "#00f518" } else { "#006cbf" })
+                    .fill_color(if result.score > 0.3 {
+                        "#00f518"
+                    } else {
+                        "#006cbf"
+                    })
                     .tooltip(&format!("Score: {:.4}", result.score)),
             );
         }

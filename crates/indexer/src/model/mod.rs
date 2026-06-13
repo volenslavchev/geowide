@@ -3,7 +3,7 @@ use std::sync::Mutex;
 use image::{ImageBuffer, Rgb, imageops::FilterType};
 use ndarray::Array4;
 use ort::{
-    ep::CoreML,
+    ep::{CoreML, MIGraphX},
     session::{Session, builder::GraphOptimizationLevel},
 };
 
@@ -22,7 +22,10 @@ impl MegaLoc {
             .map_err(|e| anyhow::anyhow!("{:?}", e))?
             .with_intra_threads(10)
             .map_err(|e| anyhow::anyhow!("{:?}", e))?
-            .with_execution_providers([CoreML::default().build()])
+            .with_execution_providers([
+                CoreML::default().build(),
+                MIGraphX::default().build(),
+            ])
             .map_err(|e| anyhow::anyhow!("{:?}", e))?
             .commit_from_file(model_source)?;
 
