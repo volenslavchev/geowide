@@ -21,6 +21,10 @@ services:
     depends_on:
       - base
 
+  client:
+    build: ./indexerui
+    restart: unless-stopped
+
   qdrant:
     image: qdrant/qdrant:latest
     restart: always

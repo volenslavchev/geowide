@@ -1,0 +1,177 @@
+@import url("https://fonts.googleapis.com/css2?family=Geist+Mono:ital,wght@0,100..900;1,100..900&display=swap");
+
+* {
+  font-family: "Geist Mono", monospace;
+  font-optical-sizing: auto;
+  font-style: normal;
+}
+
+body {
+  background-color: #060c06;
+  color: #f0f2f0;
+  margin: 0;
+
+  --primary: #54c750;
+  --secondary: #5b5b5b;
+}
+
+html,
+body,
+main,
+#root {
+  height: 100%;
+}
+
+.home-layout {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  height: 100%;
+
+  .img-selector {
+    width: 100%;
+    margin: 0 auto;
+    width: 350px;
+    height: 350px;
+    border-radius: 16px;
+    border: 1.5px solid var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 18px;
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .image {
+      height: 150px;
+      width: 200px;
+      background-position: center;
+      background-size: cover;
+    }
+  }
+
+  .subtitle {
+    margin-top: 4px;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  .loading-bar {
+    width: 48px;
+    height: 48px;
+    margin-bottom: 24px;
+    & svg {
+      fill: var(--primary);
+      color: var(--primary);
+    }
+  }
+}
+
+.data-viewer-layout {
+  display: flex;
+  height: 100%;
+
+  .map {
+    width: 100%;
+    height: 100%;
+
+    .leaflet-container {
+      height: 100%;
+      width: 100%;
+    }
+  }
+
+  .sidebar {
+    width: 700px;
+    height: 100%;
+    display: flex;
+    padding: 0px 24px 0px 24px;
+    flex-direction: column;
+    justify-content: space-between;
+
+    .location-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding-top: 32px;
+
+      .location {
+        cursor: pointer;
+        &.active {
+          color: var(--primary);
+        }
+      }
+    }
+
+    .google-maps {
+      padding-bottom: 32px;
+
+      i-frame {
+        width: 460px;
+        height: 420px;
+      }
+    }
+  }
+
+  @media (max-width: 900px) {
+    flex-direction: column;
+    .sidebar {
+      width: 100%;
+      height: 300px;
+      justify-content: space-around;
+      overflow-x: auto;
+    }
+    .google-maps iframe {
+      height: 300px;
+    }
+  }
+}
+
+/** COMMON */
+
+button,
+.button {
+  cursor: pointer;
+  color: #f0f2f0;
+  padding: 12px;
+  outline: none;
+  border: none;
+  border-radius: 12px;
+  background-color: var(--secondary);
+  font-family: "Geist Mono", monospace;
+
+  &.primary {
+    background-color: var(--primary);
+  }
+
+  > label {
+    cursor: pointer;
+  }
+}
+
+a {
+  text-decoration: none;
+  &:link {
+    color: var(--primary);
+  }
+
+  &:visited,
+  &:hover,
+  &:active {
+    color: #5ad156;
+  }
+}
+
+/** LEAFLET MAP */
+
+.map-tiles {
+  filter: var(
+    brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3)
+      brightness(0.7),
+    none
+  );
+}
