@@ -20,4 +20,5 @@ geo = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tower-http = { workspace = true }
+rustls = { workspace = true }
 geometry = { path = "../geometry" }

@@ -10,6 +10,8 @@ pub mod utils;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let _ = rustls::crypto::ring::default_provider().install_default();
+
     if let Err(_) = dotenvy::dotenv() {
         println!(".env file was not found.")
     }
