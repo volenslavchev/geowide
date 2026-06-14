@@ -36,7 +36,10 @@ pub struct IndexDatabase {
 
 impl IndexDatabase {
     pub async fn new() -> Result<Self, QdrantError> {
-        let client = Qdrant::from_url("http://localhost:6334").build()?;
+        let client = Qdrant::from_url(
+            &std::env::var("QDRANT_URL").unwrap_or("http://localhost:6334".to_string()),
+        )
+        .build()?;
         if !client.collection_exists(COLLECTION_NAME).await? {
             client
                 .create_collection(
