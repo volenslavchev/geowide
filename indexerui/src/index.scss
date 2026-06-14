@@ -96,7 +96,7 @@ main,
     .location-list {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 18px;
       padding-top: 32px;
 
       .location {
@@ -104,8 +104,8 @@ main,
         &.active {
           color: var(--primary);
         }
-        button {
-          margin-left: 20px;
+        a {
+          margin-left: 10px;
         }
       }
     }
@@ -166,5 +166,9 @@ a {
   &:hover,
   &:active {
     color: #5ad156;
+  }
+
+  &:hover {
+    text-decoration: underline;
   }
 }
