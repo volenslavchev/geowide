@@ -100,7 +100,7 @@ export const Home: React.FC<HomeProps> = ({ onSearch, isLoading }) => {
       </div>
       <p className="subtitle">
         Or view the indexed area{" "}
-        <a href={location.href + "public/varna.html"} target="_blank">
+        <a href="/public/varna.html" target="_blank">
           here
         </a>
       </p>
