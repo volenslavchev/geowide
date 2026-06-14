@@ -20,7 +20,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className={`location${activeLocation === ind ? " active" : ""}`}
             onClick={() => onLocationClick(loc, ind)}
           >
-            Location {ind + 1} - {loc.score.toFixed(3)}
+            <span>
+              Location {ind + 1} - {loc.score.toFixed(3)}
+            </span>
+            <a
+              className="button"
+              href={`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${loc.lat},${loc.lon}`}
+            >
+              Google Maps
+            </a>
           </div>
         ))}
       </div>
