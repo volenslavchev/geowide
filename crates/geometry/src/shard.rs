@@ -1,6 +1,6 @@
-use std::str::FromStr;
+use std::{hash::Hash, str::FromStr};
 
-use geo::{MultiPolygon, Rect};
+use geo::{Coord, MultiPolygon, Rect};
 use geo_traits::CoordTrait;
 use h3o::{CellIndex, LatLng, Resolution};
 
@@ -55,6 +55,28 @@ impl ShardCluster {
         Self(shards)
     }
 
+    pub async fn from_cells(cells: &[ShardCellIndex]) -> anyhow::Result<Self> {
+        if cells.is_empty() {
+            return Ok(Self(vec![]));
+        }
+
+        let mut polygons = Vec::with_capacity(cells.len());
+        for shard_cell in cells {
+            let cell_poly = geo::MultiPolygon::from(shard_cell.0);
+            polygons.extend(cell_poly.0);
+        }
+        let combined_bounds = geo::MultiPolygon(polygons);
+
+        let osm_values = osm::get_all_paths(&combined_bounds, &OSM_CONFIG).await?;
+
+        let shards = cells
+            .iter()
+            .map(|shard_cell| Shard::from_cell_index_with_data(shard_cell.0, &osm_values))
+            .collect();
+
+        Ok(Self(shards))
+    }
+
     pub async fn from_bbox(bbox: Rect) -> anyhow::Result<Self> {
         let poly: MultiPolygon = bbox.clone().into();
         let osm_values = osm::get_all_paths(&poly, &OSM_CONFIG).await?;
@@ -96,5 +118,22 @@ impl ShardCluster {
                 .map(|cell| Shard::from_cell_index_with_data(cell, &osm_values))
                 .collect(),
         ))
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ShardCellIndex(pub CellIndex);
+
+impl ShardCellIndex {
+    pub fn from_coords(coords: Coord) -> anyhow::Result<ShardCellIndex> {
+        Ok(ShardCellIndex(
+            LatLng::from_coord(&coords)?.to_cell(SHARD_RESOLUTION),
+        ))
+    }
+}
+
+impl Hash for ShardCellIndex {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.hash(state)
     }
 }

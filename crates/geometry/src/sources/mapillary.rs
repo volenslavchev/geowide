@@ -4,9 +4,15 @@ use geozero::{
     ColumnValue, FeatureProcessor, GeomProcessor, PropertyProcessor,
     mvt::{Message, Tile},
 };
-use std::f64::consts::PI;
+use image::RgbImage;
+use reqwest::Client;
+use serde::Deserialize;
+use std::{f64::consts::PI, time::Duration};
 
-use crate::{sources::SourceError, utils::SpatialTree};
+use crate::{
+    sources::{ImageSet, SourceError},
+    utils::{self, SpatialTree},
+};
 
 use super::DataSource;
 
@@ -17,6 +23,11 @@ pub struct MapillaryImage {
     pub is_pano: bool,
     pub compass_angle: Option<f64>,
     pub quality: Option<f32>,
+}
+
+#[derive(Deserialize, Debug)]
+struct MapillaryMetadata {
+    thumb_2048_url: String,
 }
 
 struct MapillaryExtractor {
@@ -123,6 +134,7 @@ impl GeomProcessor for MapillaryExtractor {
 pub struct MapillaryDataSource {
     api_key: String,
     images: SpatialTree<MapillaryImage>,
+    client: Client,
 }
 
 impl MapillaryDataSource {
@@ -130,6 +142,14 @@ impl MapillaryDataSource {
         Self {
             api_key: api_key.replace("|", "%7C"),
             images: SpatialTree::new(),
+            client: Client::builder()
+                .tcp_keepalive(Duration::from_secs(60))
+                .pool_idle_timeout(Duration::from_secs(60))
+                .pool_max_idle_per_host(50)
+                .timeout(Duration::from_secs(15))
+                .user_agent("Geowide/1.0")
+                .build()
+                .unwrap_or_else(|_| Client::new()),
         }
     }
 
@@ -137,9 +157,13 @@ impl MapillaryDataSource {
         self.images.iter().map(|v| v.coords).collect()
     }
 
+    pub fn get_images(&self) -> Vec<&MapillaryImage> {
+        self.images.iter().collect()
+    }
+
     pub fn get_images_within_radius(&self, coords: Coord, radius: f64) -> Option<&MapillaryImage> {
         self.images
-            .get_at_filter(coords, radius, |item| !item.is_pano)
+            .get_at_filter(coords, radius, |item| item.is_pano)
     }
 }
 
@@ -152,11 +176,6 @@ impl DataSource for MapillaryDataSource {
 
         let mut images: Vec<(Coord, MapillaryImage)> = vec![];
 
-        let client = reqwest::Client::builder()
-            .user_agent("Geowide/1.0")
-            .build()
-            .map_err(SourceError::Network)?;
-
         for x in min_x..=max_x {
             for y in min_y..=max_y {
                 let url = format!(
@@ -164,10 +183,13 @@ impl DataSource for MapillaryDataSource {
                     ZOOM_LEVEL, x, y, self.api_key
                 );
 
-                let response = client
-                    .execute(client.get(url).build().unwrap())
+                let response = self
+                    .client
+                    .get(url)
+                    .send()
                     .await
                     .map_err(SourceError::Network)?;
+
                 let bytes = response.bytes().await.map_err(SourceError::Network)?;
                 let tile = Tile::decode(bytes).unwrap();
 
@@ -194,9 +216,52 @@ impl DataSource for MapillaryDataSource {
         coords: Coord,
         radius: f64,
     ) -> Result<Option<super::ImageSet>, SourceError> {
-        if let Some(_found) = self.get_images_within_radius(coords, radius) {
-            // TODO: Splitting logic...
-            todo!()
+        if let Some(found) = self.get_images_within_radius(coords, radius) {
+            let graph_url = format!(
+                "https://graph.mapillary.com/{}?access_token={}&fields=thumb_2048_url",
+                found.id, self.api_key
+            );
+
+            let metadata = self
+                .client
+                .get(&graph_url)
+                .send()
+                .await
+                .map_err(SourceError::Network)?
+                .error_for_status()
+                .map_err(SourceError::Network)?
+                .json::<MapillaryMetadata>()
+                .await
+                .map_err(SourceError::Network)?;
+
+            let image_bytes = self
+                .client
+                .get(&metadata.thumb_2048_url)
+                .send()
+                .await
+                .map_err(SourceError::Network)?
+                .error_for_status()
+                .map_err(SourceError::Network)?
+                .bytes()
+                .await
+                .map_err(SourceError::Network)?;
+
+            let pieces = tokio::task::spawn_blocking(move || {
+                let img = image::load_from_memory(&image_bytes)?.into_rgb8();
+                Ok::<_, image::ImageError>(
+                    [0.0, 90.0, 180.0, 270.0]
+                        .iter()
+                        .map(|heading| utils::extract_flat_view(&img, 644, 644, *heading, 80.0))
+                        .collect::<Vec<RgbImage>>(),
+                )
+            })
+            .await
+            .unwrap()?;
+
+            Ok(Some(ImageSet {
+                pieces: pieces,
+                actual_coords: found.coords,
+            }))
         } else {
             Ok(None)
         }

@@ -15,17 +15,17 @@ pub struct VisualizeArgs {
     /// Visualize the shards in the given region (city, country, etc.)
     #[arg(long)]
     pub region: Option<String>,
-    /// Visualize the shards in the given bbox (geojson).
+    /// Visualize the shards in the given bbox.
     #[arg(long, conflicts_with = "region")]
     pub bbox: Option<CliBBox>,
     /// Visualize the specific shard
     #[arg(long, conflicts_with = "bbox")]
     pub shard: Option<String>,
-    /// Visualize the shard this point is in (geojson).
+    /// Visualize the shard this point is in.
     #[arg(long, conflicts_with = "shard")]
     pub point: Option<CliPoint>,
     // Visualize the already indexed points - they will be in green.
-    #[arg(long, default_value = "false")]
+    #[arg(long, default_value = "false", conflicts_with = "point")]
     pub indexed: bool,
     /// Where to save the visualisation (as an .html file)
     #[arg(long)]
