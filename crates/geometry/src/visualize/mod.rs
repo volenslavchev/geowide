@@ -183,7 +183,7 @@ impl MapVisualizer {
 <body>
     <div id="map"></div>
     <script>
-        var map = L.map('map', {{ preferCanvas: true }});
+        var map = L.map('map', {{ preferCanvas: false }});
         
         L.tileLayer('https://{{s}}.basemaps.cartocdn.com/dark_all/{{z}}/{{x}}/{{y}}{{r}}.png', {{
             maxZoom: 19,

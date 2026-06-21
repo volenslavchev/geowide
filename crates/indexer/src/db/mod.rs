@@ -161,7 +161,7 @@ impl IndexDatabase {
         }
 
         Ok(SpatialTree::from_bulk(points))
-    }
+    } 
 
     fn parse_saved_image<T: Serialize>(payload: &T) -> Option<ImagePoint> {
         if let Ok(value) = serde_json::to_value(payload) {

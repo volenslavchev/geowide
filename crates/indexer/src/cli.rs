@@ -71,12 +71,20 @@ pub struct LocateArgs {
     pub out: Option<PathBuf>
 }
 
+#[derive(Args)]
+pub struct CleanupArgs {
+    /// Actually perform the cleanup. Otherwise just info gets displayed.
+    #[arg(long, default_value = "false")]
+    pub clean: bool
+}
+
 #[derive(Subcommand)]
 pub enum Commands {
     Visualize(VisualizeArgs),
     Index(IndexArgs),
     Serve(ServeArgs),
-    Locate(LocateArgs)
+    Locate(LocateArgs),
+    Cleanup(CleanupArgs)
 }
 
 #[derive(Debug, Clone)]

@@ -1,5 +1,5 @@
 use geo::{Coord, Point};
-use geo::{Distance, Haversine}; // Or geo::Haversine, depending on your geo version
+use geo::{Distance, Haversine};
 use rstar::{AABB, PointDistance, RTree, RTreeObject};
 
 #[derive(Clone, Debug)]

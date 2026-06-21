@@ -23,5 +23,6 @@ async fn main() -> anyhow::Result<()> {
         Commands::Index(args) => commands::index::index_command(args).await,
         Commands::Serve(args) => commands::serve::serve_command(args).await,
         Commands::Locate(args) => commands::locate::locate_command(args).await,
+        Commands::Cleanup(args) => commands::cleanup::cleanup_command(args).await
     }
 }
