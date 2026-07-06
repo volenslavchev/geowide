@@ -15,16 +15,16 @@ pub struct VisualizeArgs {
     /// Visualize the shards in the given region (city, country, etc.)
     #[arg(long)]
     pub region: Option<String>,
-    /// Visualize the shards in the given bbox.
+    /// Visualize the shards in the given bbox
     #[arg(long, conflicts_with = "region")]
     pub bbox: Option<CliBBox>,
     /// Visualize the specific shard
     #[arg(long, conflicts_with = "bbox")]
     pub shard: Option<String>,
-    /// Visualize the shard this point is in.
+    /// Visualize the shard this point is in
     #[arg(long, conflicts_with = "shard")]
     pub point: Option<CliPoint>,
-    // Visualize the already indexed points - they will be in green.
+    /// Visualize the already indexed points - they will be in green
     #[arg(long, default_value = "false", conflicts_with = "point")]
     pub indexed: bool,
     /// Where to save the visualisation (as an .html file)
@@ -34,14 +34,14 @@ pub struct VisualizeArgs {
 
 #[derive(Args)]
 pub struct IndexArgs {
-    /// The shard to index. Can be found via the "visualize" command.
+    /// The shard to index. Can be found via the "visualize" command
     #[arg(long)]
     pub shard: String,
-    /// Only index a specific amount of points. Keep in mind every point
-    /// contains 4 images.
+    /// The amount of points to indx. Keep in mind every point consists
+    /// of 4 images
     #[arg(long)]
     pub amount: Option<usize>,
-    /// Amount of images to index per batch.
+    /// Amount of images to index per batch
     #[arg(long, default_value = "80")]
     pub batch_size: usize,
     /// Google maps API key. If provided, the google maps API
@@ -64,26 +64,32 @@ pub struct ServeArgs {
 
 #[derive(Args)]
 pub struct LocateArgs {
+    /// The path to the image, can be any format
     pub path: PathBuf,
     /// If provided, a html file will be saved with the top 10 locations
-    /// mapped out
+    /// visualized
     #[arg(long)]
     pub out: Option<PathBuf>
 }
 
 #[derive(Args)]
 pub struct CleanupArgs {
-    /// Actually perform the cleanup. Otherwise just info gets displayed.
+    /// Actually perform the cleanup. Otherwise just info gets displayed. Not implemented.
     #[arg(long, default_value = "false")]
     pub clean: bool
 }
 
 #[derive(Subcommand)]
 pub enum Commands {
+    /// Visualize h3o cells, indexed points, and missing points
     Visualize(VisualizeArgs),
+    /// Index a specific h3o cell
     Index(IndexArgs),
+    /// Serve the indexer HTTP server
     Serve(ServeArgs),
+    /// Find the location of an image
     Locate(LocateArgs),
+    /// List info about the indexer, clean up incomplete points
     Cleanup(CleanupArgs)
 }
 

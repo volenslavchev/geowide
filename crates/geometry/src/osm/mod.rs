@@ -94,7 +94,6 @@ pub async fn get_all_paths(
             for &coord in &line.0 {
                 let candidate_point = Point::from(coord);
 
-                // Pre-filter bounding box
                 let lat_buffer = config.segment_min_distance / 111_111.0;
                 let lon_buffer = lat_buffer / coord.y.to_radians().cos().abs();
 
@@ -103,7 +102,6 @@ pub async fn get_all_paths(
                     [coord.x + lon_buffer, coord.y + lat_buffer],
                 );
 
-                // Use `.any()` to implicitly short-circuit the search if a point is too close
                 let too_close = rtree
                     .locate_in_envelope_intersecting(envelope)
                     .any(|nearby_pt| {
