@@ -1,11 +1,7 @@
 use std::sync::Arc;
 
 use axum::{
-    Json, Router,
-    body::Bytes,
-    extract::State,
-    http::{HeaderValue, StatusCode, header},
-    routing::post,
+    Json, Router, body::Bytes, extract::{DefaultBodyLimit, State}, http::{HeaderValue, StatusCode, header}, routing::post,
 };
 use colored::Colorize;
 use serde::Serialize;
@@ -43,6 +39,7 @@ pub async fn serve_command(args: ServeArgs) -> anyhow::Result<()> {
     let app = Router::new()
         .route("/", post(location_route))
         .layer(cors_layer)
+        .layer(DefaultBodyLimit::max(51205_242_880)) // 5 MB
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", args.port)).await?;
