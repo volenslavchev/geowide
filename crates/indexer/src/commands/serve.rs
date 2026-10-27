@@ -39,7 +39,7 @@ pub async fn serve_command(args: ServeArgs) -> anyhow::Result<()> {
     let app = Router::new()
         .route("/", post(location_route))
         .layer(cors_layer)
-        .layer(DefaultBodyLimit::max(51205_242_880)) // 5 MB
+        .layer(DefaultBodyLimit::max(5_242_880)) // 5 MB
         .with_state(state);
 
     let listener = tokio::net::TcpListener::bind(format!("0.0.0.0:{}", args.port)).await?;

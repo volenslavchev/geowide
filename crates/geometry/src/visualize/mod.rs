@@ -177,7 +177,8 @@ impl MapVisualizer {
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <style>
         body {{ padding: 0; margin: 0; }}
-        html, body, #map {{ height: 100vh; width: 100vw; }}
+        html, body, #map {{ height: 100vh; width: 100vw; background: #060c06; }}
+        .leaflet-tile {{ filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%); }}
     </style>
 </head>
 <body>
@@ -185,7 +186,7 @@ impl MapVisualizer {
     <script>
         var map = L.map('map', {{ preferCanvas: false }});
         
-        L.tileLayer('https://{{s}}.basemaps.cartocdn.com/dark_all/{{z}}/{{x}}/{{y}}{{r}}.png', {{
+        L.tileLayer('https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png', {{
             maxZoom: 19,
             attribution: 'OpenStreetMap'
         }}).addTo(map);

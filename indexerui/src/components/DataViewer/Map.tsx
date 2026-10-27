@@ -33,7 +33,7 @@ export const Map: React.FC<MapProps> = ({ result }) => {
         <MapAutoResizer />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           className="map-tiles"
         />
         <Marker position={[result.lat, result.lon]}></Marker>

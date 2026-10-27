@@ -82,6 +82,11 @@ main,
     .leaflet-container {
       height: 100%;
       width: 100%;
+      background-color: #060c06;
+    }
+
+    .map-tiles {
+      filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
     }
   }
 

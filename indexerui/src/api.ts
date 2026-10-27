@@ -21,8 +21,10 @@ export function useApi() {
     setResponse(undefined);
     setIsLoading(true);
     new Compressor(imageBytes, {
-      quality: 0.75,
-      mimeType: "image/webp",
+      quality: 0.85,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      mimeType: "image/jpeg",
       async success(result) {
         try {
           const response = await fetch(import.meta.env.VITE_BACKEND_URL, {
@@ -46,6 +48,8 @@ export function useApi() {
         }
       },
       error(err) {
+        setIsLoading(false);
+        setIsError(true);
         console.error(err.message);
       },
     });
